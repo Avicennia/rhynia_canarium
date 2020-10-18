@@ -1,12 +1,12 @@
- -- luacheck: globals rhyn minetest shout
+ -- luacheck: globals rhynia minetest
 local thismod = minetest.get_current_modname()
 --local modpath = minetest.get_modpath(thismod)
 local tm = thismod
---local parentmod = "rhyn"
+--local parentmod = "rhynia"
 local genera = {"canarium"}
 
 for g = 1, #genera do
-rhyn.modules[tm] = {genera = {genera[g]}}
+rhynia.modules[tm] = {genera = {genera[g]}}
 
 local def = {
     parentmod = tm,
@@ -14,40 +14,39 @@ local def = {
     genus = "canarium",
     root_dim = 2,
     health_max = 10,
-    growth_interval = 100,
-    substrates = {"nc_terrain:stone"},
+    growth_interval = 44,
+    substrates = {["nc_tree:tree"] = 4, ["nc_tree:root"]= 6},
     growth_factor = {names = {"nc_fire:ash"},values = {8}},
     survival_factor = {names = {"group:igniter"}, values = {-9}},
     spore_dis_rad = 3,
     condition_factor = {},
     catchments = {base = 1, ext = 2},
-    structure = {{tm..":canarium"}},
+    structure = {{"air"},{tm..":canarium_1",tm..":canarium_leaves"},{tm..":canarium_1",tm..":canarium_trunk",tm..":canarium_leaves"}},
     stage = stage,
-    traits = {growth_opt = true, pt2condition = true},
+    traits = {growth_opt = true, pt2condition = true, annual = true},
     acts = {
        on_tick = function(...)
-            --[[local val = rhyn.f.selectify(...)
+            local val = rhynia.u.selectify(...)
             local pos,genus = val[1], val[2]
-            if(not rhyn.f.is_rooted(pos))then return rhyn.rn(pos) end
-            if(rhyn.f.kill_if_health(pos,0))then return end
-            rhyn.f.alter_health(pos,-rhyn.f.spot_check(pos,"group:igniter"))
+            if(not rhynia.f.is_rooted(pos, genera[g]))then return rhynia.u.rn(pos) end
+            if(rhynia.f.kill_if_health(pos,0))then return end
+            rhynia.f.alter_health(pos,-rhynia.f.spot_check(pos,"group:igniter"))
             
-            --local data = rhyn.f.nominate(minetest.get_node(pos).name)
+            --local data = rhynia.f.nominate(minetest.get_node(pos).name)
             local function incr()
-            rhyn.f.growth_tick(pos,genus)
+            rhynia.f.growth_tick(pos,genus)
             end
-            incr()]]
+            incr()
           end
     }
 }
 
-rhyn.f.register_emulsion(def)
+rhynia.f.register_emulsion(def)
 
     local k = genera[g]
     local v = def
     for n = 1, 1 do
-        for nn = 1, 1 do
-            local name = k.."_mat_1"
+            local name = k.."_"..n
             local ndef = {
                 genus = k,
                 name = tm..":"..name,
@@ -191,26 +190,30 @@ rhyn.f.register_emulsion(def)
     connects_to = {"nc_tree:tree", "nc_tree:root","group:canarium_root"},
     connect_sides = {"top", "bottom"},
                 tiles = {"canarium_trunk.png","canarium_trunk2.png"},
-                groups = {planty = 1, rhyn_plant = 1, choppy = 2,flammable = 8,fire_fuel = 6,log = 1,falling_node = 1,
+                groups = {planty = 1, rhynia_plant = 1, choppy = 2,flammable = 8,fire_fuel = 6,log = 1,falling_node = 1,
             scaling_time = 52},
                 on_construct = function(pos)
                 local meta = minetest.get_meta(pos)
-                meta:set_int("rhyn_gl",1)
-                meta:set_int("rhyn_ci",1)
-                meta:set_int("rhyn_h",v.health_max)
+                meta:set_int("rhynia_gl",0)
+                meta:set_int("rhynia_ci",1)
+                meta:set_int("rhynia_h",v.health_max)
                 end,
                 on_punch = function(pos)
                     local m = minetest.get_meta(pos)
-                    shout("GROWTH: "..m:get_int("rhyn_gi"))
-                    shout("CONDITION: "..m:get_int("rhyn_ci"))
-                    shout("HEALTH: "..rhyn.f.check_health(pos))
+                    local function shout(s)
+                        return rhynia.u.sh(s)
+                    end
+                    shout("GROWTH: "..m:get_int("rhynia_gi"))
+                    shout("CONDITION: "..m:get_int("rhynia_ci"))
+                    shout("HEALTH: "..rhynia.f.check_health(pos))
+                    shout("LEVEL: "..m:get_int("rhynia_gl"))
                     return
                 end
             }
-            rhyn.f.rnode(ndef)
+            rhynia.f.rnode(ndef)
         end
+        rhynia.f.assign_soils_alt(genera[g])
     end
-end
 for n = 1, 2 do
 minetest.register_node(tm..":canarium_root_"..n, {
     tiles = minetest.registered_nodes[n == 1 and "nc_tree:root" or "nc_tree:tree"].tiles,
@@ -222,13 +225,51 @@ minetest.register_node(tm..":canarium_root_"..n, {
             {-0.4375, -0.5, -0.4375, 0.4375, 0.5, 0.4375}, -- NodeBox1
         }
     },
-    groups = {rhyn = 1, canarium_root = 1}
+    groups = {rhynia = 1, canarium_root = 1, rhynia_plant = 1}
 })
 end
 minetest.register_node(tm..":canarium_leaves", {
-    description = "Mosa Leaves",
-    drawtype = "allfaces_optional",
-    waving = 1,
+    description = "Canarium Leaves",
+    drawtype = "nodebox",
+    node_box = {
+		type = "fixed",
+		fixed = {
+			{-0.375, -0.5, -0.375, 0.375, 0.375, 0.375}, -- NodeBox1
+			{0.375, -0.4375, -0.3125, 0.4375, 0.3125, 0.3125}, -- NodeBox2
+			{-0.4375, -0.4375, -0.3125, -0.375, 0.3125, 0.3125}, -- NodeBox3
+			{-0.5, -0.375, -0.25, -0.4375, 0.25, 0.25}, -- NodeBox4
+			{0.4375, -0.375, -0.25, 0.5, 0.25, 0.25}, -- NodeBox5
+			{-0.3125, -0.4375, 0.375, 0.3125, 0.3125, 0.4375}, -- NodeBox6
+			{-0.3125, -0.4375, -0.4375, 0.3125, 0.3125, -0.375}, -- NodeBox7
+			{-0.25, -0.375, -0.5, 0.25, 0.25, -0.4375}, -- NodeBox8
+			{-0.25, -0.375, 0.4375, 0.25, 0.25, 0.5}, -- NodeBox9
+			{-0.3125, 0.375, -0.3125, 0.3125, 0.4375, 0.3125}, -- NodeBox10
+			{-0.25, 0.4375, -0.25, 0.25, 0.5, 0.25}, -- NodeBox11
+		}
+	},
+    waving = 2,
     tiles = {"canarium_leaves.png"},
-    groups = {rhyn_plant = 1},
+    groups = {rhynia = 1, rhynia_plant = 1},
+})
+minetest.register_node(tm..":canarium_trunk", {
+    description = "Canarium Trunk",
+    drawtype = "nodebox",
+    waving = 1,
+    tiles = minetest.registered_nodes[tm..":canarium_1"].tiles,
+    node_box = minetest.registered_nodes[tm..":canarium_1"].node_box,
+    groups = {rhynia = 1, rhynia_plant = 1},
+})
+
+nodecore.register_limited_abm({
+    label = "Tree Root Takeover",
+    nodenames = {"nc_tree:root","nc_tree:tree"},
+    interval = 1,
+    chance = 1,
+    ignore_stasis = false,
+    action = function(pos, node)
+    local function airchk(pos)
+    	return rhynia.u.gn({x = pos.x, y = pos.y + 1, z = pos.z}).name == "air"
+    end
+    return airchk(pos) and math.random(100) > 50 and rhynia.u.sna(pos,tm..":canarium_1")
+    end
 })
